@@ -3,12 +3,14 @@ import { useShallow } from "zustand/react/shallow";
 import { useMachineStore } from "./stores/useMachineStore";
 import { useMachineCacheStore } from "./stores/useMachineCacheStore";
 import { usePatternStore } from "./stores/usePatternStore";
+import { usePlannerStore } from "./stores/usePlannerStore";
 import { useUIStore } from "./stores/useUIStore";
 import { AppHeader } from "./components/AppHeader";
 import { LeftSidebar } from "./components/LeftSidebar";
 import { PatternCanvas } from "./components/PatternCanvas";
 import { PatternCanvasPlaceholder } from "./components/PatternCanvasPlaceholder";
 import { BluetoothDevicePicker } from "./components/BluetoothDevicePicker";
+import { useActivePatternSync } from "./hooks/domain/useActivePatternSync";
 import { transformStitchesRotation } from "./utils/rotationUtils";
 import { encodeStitchesToPen } from "./formats/pen/encoder";
 import { decodePenData } from "./formats/pen/decoder";
@@ -28,6 +30,9 @@ function App() {
   useEffect(() => {
     useMachineStore.getState().initialize();
   }, []);
+
+  // Keep the active pattern store in sync with the planner selection
+  useActivePatternSync();
 
   // Machine cache store - for auto-loading cached pattern
   const { resumedPattern, resumeFileName } = useMachineCacheStore(
@@ -60,6 +65,13 @@ function App() {
   const { initializePyodide } = useUIStore(
     useShallow((state) => ({
       initializePyodide: state.initializePyodide,
+    })),
+  );
+
+  // Planner store
+  const { patternCount } = usePlannerStore(
+    useShallow((state) => ({
+      patternCount: state.patterns.length,
     })),
   );
 
@@ -209,7 +221,7 @@ function App() {
 
           {/* Right Column - Pattern Preview */}
           <div className="flex flex-col lg:overflow-hidden lg:h-full">
-            {pesData || uploadedPesData ? (
+            {pesData || uploadedPesData || patternCount > 0 ? (
               <PatternCanvas />
             ) : (
               <PatternCanvasPlaceholder />

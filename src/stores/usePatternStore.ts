@@ -23,6 +23,7 @@ interface PatternState {
 
   // Actions
   setPattern: (data: PesPatternData, fileName: string) => void;
+  clearPattern: () => void;
   setPatternOffset: (x: number, y: number) => void;
   setPatternRotation: (rotation: number) => void;
   setUploadedPattern: (
@@ -74,6 +75,19 @@ export const usePatternStore = create<PatternState>((set) => ({
       patternOffset: { x: 0, y: 0 },
       patternRotation: 0,
       uploadedPesData: null, // Clear uploaded pattern when loading new
+      uploadedPatternOffset: { x: 0, y: 0 },
+      patternUploaded: false,
+    });
+  },
+
+  // Clear the active pattern
+  clearPattern: () => {
+    set({
+      pesData: null,
+      currentFileName: "",
+      patternOffset: { x: 0, y: 0 },
+      patternRotation: 0,
+      uploadedPesData: null,
       uploadedPatternOffset: { x: 0, y: 0 },
       patternUploaded: false,
     });

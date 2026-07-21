@@ -14,7 +14,6 @@ interface FileSelectorProps {
   isLoading: boolean;
   isDisabled: boolean;
   onFileChange: (event?: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-  displayFileName: string;
   patternUploaded: boolean;
 }
 
@@ -32,6 +31,7 @@ export function FileSelector({
       <input
         type="file"
         accept=".pes"
+        multiple
         onChange={onFileChange}
         id="file-input"
         className="hidden"
@@ -59,7 +59,7 @@ export function FileSelector({
             ) : (
               <>
                 <FolderOpenIcon className="w-3.5 h-3.5" />
-                <span>Choose PES File</span>
+                <span>Choose PES Files</span>
               </>
             )}
           </>
@@ -81,7 +81,7 @@ export function FileSelector({
             ) : (
               <>
                 <FolderOpenIcon className="w-3.5 h-3.5" />
-                <span>Choose PES File</span>
+                <span>Choose PES Files</span>
               </>
             )}
           </label>

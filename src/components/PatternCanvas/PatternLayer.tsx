@@ -21,10 +21,12 @@ interface PatternLayerProps {
   offset: { x: number; y: number };
   rotation?: number;
   isInteractive: boolean;
+  isSelected?: boolean;
   showProgress?: boolean;
   currentStitchIndex?: number;
   patternGroupRef?: RefObject<Konva.Group | null>;
   transformerRef?: RefObject<Konva.Transformer | null>;
+  onSelect?: () => void;
   onDragEnd?: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onTransformEnd?: (e: KonvaEventObject<Event>) => void;
   attachTransformer?: () => void;
@@ -35,10 +37,12 @@ export const PatternLayer = memo(function PatternLayer({
   offset,
   rotation = 0,
   isInteractive,
+  isSelected = false,
   showProgress = false,
   currentStitchIndex = 0,
   patternGroupRef,
   transformerRef,
+  onSelect,
   onDragEnd,
   onTransformEnd,
   attachTransformer,
@@ -82,17 +86,37 @@ export const PatternLayer = memo(function PatternLayer({
         draggable={isInteractive}
         x={offset.x}
         y={offset.y}
+        rotation={isInteractive ? undefined : rotation}
         offsetX={center.x}
         offsetY={center.y}
         onDragEnd={isInteractive ? onDragEnd : undefined}
         onTransformEnd={isInteractive ? onTransformEnd : undefined}
+        onClick={
+          !isInteractive && onSelect
+            ? (e) => {
+                e.cancelBubble = true;
+                onSelect();
+              }
+            : undefined
+        }
+        onTap={
+          !isInteractive && onSelect
+            ? (e) => {
+                e.cancelBubble = true;
+                onSelect();
+              }
+            : undefined
+        }
         onMouseEnter={
           isInteractive
             ? (e) => {
                 const stage = e.target.getStage();
                 if (stage) stage.container().style.cursor = "move";
               }
-            : undefined
+            : (e) => {
+                const stage = e.target.getStage();
+                if (stage) stage.container().style.cursor = "pointer";
+              }
         }
         onMouseLeave={
           isInteractive
@@ -100,7 +124,10 @@ export const PatternLayer = memo(function PatternLayer({
                 const stage = e.target.getStage();
                 if (stage) stage.container().style.cursor = "grab";
               }
-            : undefined
+            : (e) => {
+                const stage = e.target.getStage();
+                if (stage) stage.container().style.cursor = "grab";
+              }
         }
       >
         <Stitches
@@ -127,7 +154,7 @@ export const PatternLayer = memo(function PatternLayer({
           enabledAnchors={[]}
           rotateEnabled={true}
           borderEnabled={true}
-          borderStroke="#FF6B6B"
+          borderStroke={isSelected ? "#FF6B6B" : "#94a3b8"}
           borderStrokeWidth={2}
           rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
           ignoreStroke={true}

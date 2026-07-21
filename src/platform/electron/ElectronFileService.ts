@@ -4,38 +4,49 @@ import type { IFileService } from "../interfaces/IFileService";
  * Electron implementation of file service using native dialogs via IPC
  */
 export class ElectronFileService implements IFileService {
-  async openFileDialog(): Promise<File | null> {
+  async openFileDialog(options: {
+    accept: string;
+    multiple?: boolean;
+  }): Promise<File[]> {
     if (!window.electronAPI) {
       throw new Error("Electron API not available");
     }
 
     try {
-      const result = await window.electronAPI.invoke<{
+      const results = await window.electronAPI.invoke<Array<{
         filePath: string;
         fileName: string;
-      } | null>("dialog:openFile", {
+      }> | null>("dialog:openFile", {
         filters: [
           { name: "PES Files", extensions: ["pes"] },
           { name: "All Files", extensions: ["*"] },
         ],
+        properties: options.multiple ? ["multiSelections"] : undefined,
       });
 
-      if (!result) {
-        return null;
+      if (!results || results.length === 0) {
+        return [];
       }
 
-      // Read the file content
-      const buffer = await window.electronAPI.invoke<ArrayBuffer>(
-        "fs:readFile",
-        result.filePath,
-      );
-      const blob = new Blob([buffer]);
-      return new File([blob], result.fileName, {
-        type: "application/octet-stream",
-      });
+      const files: File[] = [];
+      for (const result of results) {
+        // Read the file content
+        const buffer = await window.electronAPI.invoke<ArrayBuffer>(
+          "fs:readFile",
+          result.filePath,
+        );
+        const blob = new Blob([buffer]);
+        files.push(
+          new File([blob], result.fileName, {
+            type: "application/octet-stream",
+          }),
+        );
+      }
+
+      return files;
     } catch (err) {
       console.error("[ElectronFileService] Failed to open file:", err);
-      return null;
+      return [];
     }
   }
 

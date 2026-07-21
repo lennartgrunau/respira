@@ -292,8 +292,13 @@ ipcMain.handle("storage:clear", async () => {
 // File dialog handlers
 ipcMain.handle("dialog:openFile", async (_event, options) => {
   try {
+    const properties: Array<"openFile" | "multiSelections"> = ["openFile"];
+    if (options.properties?.includes("multiSelections")) {
+      properties.push("multiSelections");
+    }
+
     const result = await dialog.showOpenDialog({
-      properties: ["openFile"],
+      properties,
       filters: options.filters,
     });
 
@@ -301,14 +306,20 @@ ipcMain.handle("dialog:openFile", async (_event, options) => {
       return null;
     }
 
-    const filePath = result.filePaths[0];
-    const fileName = filePath.split(/[\\/]/).pop() || "";
+    const files = result.filePaths.map((filePath) => {
+      const fileName = filePath.split(/[\\/]/).pop() || "";
 
-    // Approve path for file operations since user explicitly selected it
-    approvePath(filePath);
+      // Approve path for file operations since user explicitly selected it
+      approvePath(filePath);
 
-    console.log("[Dialog] File selected:", fileName);
-    return { filePath, fileName };
+      return { filePath, fileName };
+    });
+
+    console.log(
+      "[Dialog] Files selected:",
+      files.map((f) => f.fileName),
+    );
+    return files;
   } catch (err) {
     console.error("[Dialog] Failed to open file:", err);
     throw err;

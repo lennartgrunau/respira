@@ -1,6 +1,7 @@
 import { useShallow } from "zustand/react/shallow";
 import { useMachineStore, usePatternUploaded } from "../stores/useMachineStore";
 import { usePatternStore } from "../stores/usePatternStore";
+import { usePlannerStore } from "../stores/usePlannerStore";
 import { ConnectionPrompt } from "./ConnectionPrompt";
 import { FileUpload } from "./FileUpload";
 import { PatternSummaryCard } from "./PatternSummaryCard";
@@ -20,9 +21,15 @@ export function LeftSidebar() {
     })),
   );
 
+  const { patternCount } = usePlannerStore(
+    useShallow((state) => ({
+      patternCount: state.patterns.length,
+    })),
+  );
+
   // Derived state: pattern is uploaded if machine has pattern info
   const patternUploaded = usePatternUploaded();
-  const hasPattern = pesData || uploadedPesData;
+  const hasPattern = patternCount > 0 || pesData || uploadedPesData;
 
   return (
     <div className="flex flex-col gap-4 md:gap-5 lg:gap-6 lg:overflow-hidden">

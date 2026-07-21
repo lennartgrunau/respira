@@ -13,6 +13,7 @@ import {
 import { useMachineUploadStore } from "../../stores/useMachineUploadStore";
 import { useMachineCacheStore } from "../../stores/useMachineCacheStore";
 import { usePatternStore } from "../../stores/usePatternStore";
+import { usePlannerStore } from "../../stores/usePlannerStore";
 import { useUIStore } from "../../stores/useUIStore";
 import type { PesPatternData } from "../../formats/import/pesImporter";
 import {
@@ -20,10 +21,13 @@ import {
   usePatternRotationUpload,
   usePatternValidation,
 } from "@/hooks";
-import { getDisplayFilename } from "../../utils/displayFilename";
 import { PatternInfoSkeleton } from "../SkeletonLoader";
 import { PatternInfo } from "../PatternInfo";
-import { DocumentTextIcon } from "@heroicons/react/24/solid";
+import {
+  DocumentTextIcon,
+  TrashIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/solid";
 import { createFileService } from "../../platform";
 import type { IFileService } from "../../platform/interfaces/IFileService";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,6 +37,7 @@ import { PyodideProgress } from "./PyodideProgress";
 import { UploadButton } from "./UploadButton";
 import { UploadProgress } from "./UploadProgress";
 import { BoundsValidator } from "./BoundsValidator";
+import { Button } from "@/components/ui/button";
 
 export function FileUpload() {
   // Machine store
@@ -61,13 +66,12 @@ export function FileUpload() {
     })),
   );
 
-  // Pattern store
+  // Pattern store (active/selected pattern)
   const {
-    pesData: pesDataProp,
+    pesData,
     currentFileName,
     patternOffset,
     patternRotation,
-    setPattern,
     setUploadedPattern,
   } = usePatternStore(
     useShallow((state) => ({
@@ -75,8 +79,26 @@ export function FileUpload() {
       currentFileName: state.currentFileName,
       patternOffset: state.patternOffset,
       patternRotation: state.patternRotation,
-      setPattern: state.setPattern,
       setUploadedPattern: state.setUploadedPattern,
+    })),
+  );
+
+  // Planner store
+  const {
+    patterns,
+    selectedId,
+    addPattern,
+    selectPattern,
+    removePattern,
+    clearPatterns,
+  } = usePlannerStore(
+    useShallow((state) => ({
+      patterns: state.patterns,
+      selectedId: state.selectedId,
+      addPattern: state.addPattern,
+      selectPattern: state.selectPattern,
+      removePattern: state.removePattern,
+      clearPatterns: state.clearPatterns,
     })),
   );
 
@@ -98,31 +120,20 @@ export function FileUpload() {
     })),
   );
 
-  const [localPesData, setLocalPesData] = useState<PesPatternData | null>(null);
-  const [fileName, setFileName] = useState<string>("");
   const [fileService] = useState<IFileService>(() => createFileService());
-
-  // Use prop pesData if available (from cached pattern), otherwise use local state
-  const pesData = pesDataProp || localPesData;
-  // Use currentFileName from App state, or local fileName, or resumeFileName for display
-  const displayFileName = getDisplayFilename({
-    currentFileName,
-    localFileName: fileName,
-    resumeFileName,
-  });
 
   // File upload hook - handles file selection and conversion
   const { isLoading, handleFileChange } = useFileUpload({
     fileService,
     pyodideReady,
     initializePyodide,
-    onFileLoaded: useCallback(
-      (data: PesPatternData, name: string) => {
-        setLocalPesData(data);
-        setFileName(name);
-        setPattern(data, name);
+    onFilesLoaded: useCallback(
+      (files: { data: PesPatternData; name: string }[]) => {
+        for (const file of files) {
+          addPattern(file.data, file.name);
+        }
       },
-      [setPattern],
+      [addPattern],
     ),
   });
 
@@ -134,17 +145,17 @@ export function FileUpload() {
 
   // Wrapper to call upload with current pattern data
   const handleUpload = useCallback(async () => {
-    if (pesData && displayFileName) {
+    if (pesData && currentFileName) {
       await handlePatternUpload(
         pesData,
-        displayFileName,
+        currentFileName,
         patternOffset,
         patternRotation,
       );
     }
   }, [
     pesData,
-    displayFileName,
+    currentFileName,
     patternOffset,
     patternRotation,
     handlePatternUpload,
@@ -171,6 +182,8 @@ export function FileUpload() {
     isUploading ||
     (uploadProgress > 0 && !patternUploaded);
 
+  const selectedPattern = patterns.find((p) => p.id === selectedId);
+
   return (
     <Card className={cn("p-0 gap-0 border-l-4", borderColor)}>
       <CardContent className="p-4 rounded-lg">
@@ -182,12 +195,12 @@ export function FileUpload() {
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
               Pattern File
             </h3>
-            {pesData && displayFileName ? (
+            {currentFileName ? (
               <p
                 className="text-xs text-gray-600 dark:text-gray-400 truncate"
-                title={displayFileName}
+                title={currentFileName}
               >
-                {displayFileName}
+                {currentFileName}
               </p>
             ) : (
               <p className="text-xs text-gray-600 dark:text-gray-400">
@@ -207,9 +220,9 @@ export function FileUpload() {
 
         {isLoading && <PatternInfoSkeleton />}
 
-        {!isLoading && pesData && (
+        {!isLoading && selectedPattern && (
           <div className="mb-3">
-            <PatternInfo pesData={pesData} showThreadBlocks />
+            <PatternInfo pesData={selectedPattern.pesData} showThreadBlocks />
           </div>
         )}
 
@@ -219,7 +232,6 @@ export function FileUpload() {
             isLoading={isLoading}
             isDisabled={isSelectorDisabled}
             onFileChange={handleFileChange}
-            displayFileName={displayFileName}
             patternUploaded={patternUploaded}
           />
 
@@ -235,6 +247,58 @@ export function FileUpload() {
             patternUploaded={patternUploaded}
           />
         </div>
+
+        {/* Planner pattern list */}
+        {patterns.length > 0 && (
+          <div className="mb-3 border rounded-md border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                Planner ({patterns.length})
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearPatterns}
+                disabled={isUploading || patternUploaded}
+                className="h-5 px-1.5 text-xs text-danger-600 hover:text-danger-700 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+              >
+                <XMarkIcon className="w-3 h-3 mr-1" />
+                Clear
+              </Button>
+            </div>
+            <ul className="max-h-40 overflow-y-auto">
+              {patterns.map((pattern) => (
+                <li
+                  key={pattern.id}
+                  className={cn(
+                    "px-3 py-2 flex items-center justify-between gap-2 cursor-pointer text-xs hover:bg-gray-100 dark:hover:bg-gray-800",
+                    pattern.id === selectedId
+                      ? "bg-secondary-50 dark:bg-secondary-900/20 border-l-2 border-secondary-500"
+                      : "border-l-2 border-transparent",
+                  )}
+                  onClick={() => selectPattern(pattern.id)}
+                >
+                  <span className="truncate flex-1" title={pattern.fileName}>
+                    {pattern.fileName}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removePattern(pattern.id);
+                    }}
+                    disabled={isUploading || patternUploaded}
+                    className="h-5 w-5 p-0 text-gray-500 hover:text-danger-600 hover:bg-danger-50 dark:text-gray-400 dark:hover:text-danger-400 dark:hover:bg-danger-900/20"
+                    aria-label={`Remove ${pattern.fileName}`}
+                  >
+                    <TrashIcon className="w-3 h-3" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <PyodideProgress
           pyodideReady={pyodideReady}

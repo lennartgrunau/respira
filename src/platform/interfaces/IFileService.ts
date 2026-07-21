@@ -1,10 +1,13 @@
 export interface IFileService {
   /**
-   * Open file picker and return File object
-   * @param options File picker options (e.g., accept filter)
-   * @returns Selected File or null if cancelled
+   * Open file picker and return selected File objects
+   * @param options File picker options (e.g., accept filter, multiple selection)
+   * @returns Array of selected Files, empty array if cancelled
    */
-  openFileDialog(options: { accept: string }): Promise<File | null>;
+  openFileDialog(options: {
+    accept: string;
+    multiple?: boolean;
+  }): Promise<File[]>;
 
   /**
    * Save file with native dialog (Electron only, no-op in browser)

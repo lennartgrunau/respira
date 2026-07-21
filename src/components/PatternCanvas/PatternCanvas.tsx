@@ -6,6 +6,7 @@ import {
 } from "../../stores/useMachineStore";
 import { useMachineUploadStore } from "../../stores/useMachineUploadStore";
 import { usePatternStore } from "../../stores/usePatternStore";
+import { usePlannerStore } from "../../stores/usePlannerStore";
 import { Stage, Layer } from "react-konva";
 import Konva from "konva";
 import { PhotoIcon, SunIcon, MoonIcon } from "@heroicons/react/24/solid";
@@ -41,7 +42,7 @@ export function PatternCanvas() {
     })),
   );
 
-  // Pattern store
+  // Pattern store (active/selected pattern)
   const {
     pesData,
     patternOffset: initialPatternOffset,
@@ -59,6 +60,15 @@ export function PatternCanvas() {
       uploadedPatternOffset: state.uploadedPatternOffset,
       setPatternOffset: state.setPatternOffset,
       setPatternRotation: state.setPatternRotation,
+    })),
+  );
+
+  // Planner store (all planned patterns)
+  const { patterns, selectedId, selectPattern } = usePlannerStore(
+    useShallow((state) => ({
+      patterns: state.patterns,
+      selectedId: state.selectedId,
+      selectPattern: state.selectPattern,
     })),
   );
 
@@ -93,7 +103,7 @@ export function PatternCanvas() {
     [setPatternOffset],
   );
 
-  // Pattern transform (position, rotation, drag/transform)
+  // Pattern transform (position, rotation, drag/transform) for the selected pattern
   const {
     localPatternOffset,
     localPatternRotation,
@@ -122,7 +132,7 @@ export function PatternCanvas() {
   const canvasGridColor = previewDark ? "#404040" : "#e0e0e0";
   const canvasOriginColor = previewDark ? "#999999" : "#888888";
 
-  const hasPattern = pesData || uploadedPesData;
+  const hasPattern = patterns.length > 0 || !!uploadedPesData;
   const borderColor = hasPattern
     ? "border-tertiary-600 dark:border-tertiary-500"
     : "border-gray-400 dark:border-gray-600";
@@ -150,6 +160,9 @@ export function PatternCanvas() {
     return `${width} × ${height} mm`;
   }, [displayPattern]);
 
+  // Selected pattern for upload/transform
+  const selectedPattern = patterns.find((p) => p.id === selectedId) ?? null;
+
   return (
     <Card
       className={`p-0 gap-0 lg:h-full flex flex-col border-l-4 ${borderColor}`}
@@ -162,7 +175,9 @@ export function PatternCanvas() {
               <CardTitle className="text-sm">Pattern Preview</CardTitle>
               {hasPattern ? (
                 <CardDescription className="text-xs">
-                  {patternDimensions}
+                  {patterns.length > 1
+                    ? `${patterns.length} patterns loaded`
+                    : patternDimensions}
                 </CardDescription>
               ) : (
                 <CardDescription className="text-xs">
@@ -226,21 +241,31 @@ export function PatternCanvas() {
               <Layer
                 visible={!isUploading && !patternUploaded && !uploadedPesData}
               >
-                {pesData && (
-                  <PatternLayer
-                    pesData={pesData}
-                    offset={localPatternOffset}
-                    rotation={localPatternRotation}
-                    isInteractive={true}
-                    showProgress={false}
-                    currentStitchIndex={0}
-                    patternGroupRef={patternGroupRef}
-                    transformerRef={transformerRef}
-                    onDragEnd={handlePatternDragEnd}
-                    onTransformEnd={handleTransformEnd}
-                    attachTransformer={attachTransformer}
-                  />
-                )}
+                {patterns.map((pattern) => {
+                  const isSelected = pattern.id === selectedId;
+                  return (
+                    <PatternLayer
+                      key={pattern.id}
+                      pesData={pattern.pesData}
+                      offset={isSelected ? localPatternOffset : pattern.offset}
+                      rotation={
+                        isSelected ? localPatternRotation : pattern.rotation
+                      }
+                      isInteractive={isSelected}
+                      isSelected={isSelected}
+                      showProgress={false}
+                      currentStitchIndex={0}
+                      patternGroupRef={isSelected ? patternGroupRef : undefined}
+                      transformerRef={isSelected ? transformerRef : undefined}
+                      onSelect={() => selectPattern(pattern.id)}
+                      onDragEnd={handlePatternDragEnd}
+                      onTransformEnd={handleTransformEnd}
+                      attachTransformer={
+                        isSelected ? attachTransformer : undefined
+                      }
+                    />
+                  );
+                })}
               </Layer>
 
               {/* Uploaded pattern layer: locked, rotation baked in (shown during and after upload) */}
@@ -272,13 +297,13 @@ export function PatternCanvas() {
             <>
               <ThreadLegend colors={displayPattern.uniqueColors} />
 
-              {pesData &&
+              {selectedPattern &&
                 machineInfo &&
                 !patternUploaded &&
                 !isUploading &&
                 !uploadedPesData && (
                   <PositionPresets
-                    pesData={pesData}
+                    pesData={selectedPattern.pesData}
                     patternRotation={localPatternRotation}
                     machineInfo={machineInfo}
                     onPositionSelect={handlePositionPreset}

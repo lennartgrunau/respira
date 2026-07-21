@@ -4,19 +4,23 @@ import type { IFileService } from "../interfaces/IFileService";
  * Browser implementation of file service using HTML input elements
  */
 export class BrowserFileService implements IFileService {
-  async openFileDialog(options: { accept: string }): Promise<File | null> {
+  async openFileDialog(options: {
+    accept: string;
+    multiple?: boolean;
+  }): Promise<File[]> {
     return new Promise((resolve) => {
       const input = document.createElement("input");
       input.type = "file";
       input.accept = options.accept;
+      input.multiple = options.multiple ?? false;
 
       input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        resolve(file || null);
+        const files = (e.target as HTMLInputElement).files;
+        resolve(files ? Array.from(files) : []);
       };
 
       input.oncancel = () => {
-        resolve(null);
+        resolve([]);
       };
 
       input.click();

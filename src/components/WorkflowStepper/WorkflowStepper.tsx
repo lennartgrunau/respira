@@ -12,6 +12,7 @@ import {
   usePatternUploaded,
 } from "../../stores/useMachineStore";
 import { usePatternStore } from "../../stores/usePatternStore";
+import { usePlannerStore } from "../../stores/usePlannerStore";
 import { WORKFLOW_STEPS } from "../../constants/workflowSteps";
 import { getCurrentStep } from "../../utils/workflowStepCalculation";
 import { StepCircle } from "./StepCircle";
@@ -34,9 +35,16 @@ export function WorkflowStepper() {
     })),
   );
 
+  // Planner store
+  const { patternCount } = usePlannerStore(
+    useShallow((state) => ({
+      patternCount: state.patterns.length,
+    })),
+  );
+
   // Derived state: pattern is uploaded if machine has pattern info
   const patternUploaded = usePatternUploaded();
-  const hasPattern = pesData !== null;
+  const hasPattern = patternCount > 0 || pesData !== null;
   const currentStep = getCurrentStep(
     machineStatus,
     isConnected,
