@@ -20,6 +20,7 @@ import {
   useFileUpload,
   usePatternRotationUpload,
   usePatternValidation,
+  useLayoutLoader,
 } from "@/hooks";
 import { PatternInfoSkeleton } from "../SkeletonLoader";
 import { PatternInfo } from "../PatternInfo";
@@ -27,6 +28,8 @@ import {
   DocumentTextIcon,
   TrashIcon,
   XMarkIcon,
+  ArrowDownTrayIcon,
+  FolderOpenIcon,
 } from "@heroicons/react/24/solid";
 import { createFileService } from "../../platform";
 import type { IFileService } from "../../platform/interfaces/IFileService";
@@ -38,6 +41,11 @@ import { UploadButton } from "./UploadButton";
 import { UploadProgress } from "./UploadProgress";
 import { BoundsValidator } from "./BoundsValidator";
 import { Button } from "@/components/ui/button";
+import {
+  serializeLayout,
+  parseLayout,
+  LayoutError,
+} from "../../services/LayoutService";
 
 export function FileUpload() {
   // Machine store
@@ -91,6 +99,8 @@ export function FileUpload() {
     selectPattern,
     removePattern,
     clearPatterns,
+    updatePatternOffset,
+    updatePatternRotation,
   } = usePlannerStore(
     useShallow((state) => ({
       patterns: state.patterns,
@@ -99,6 +109,8 @@ export function FileUpload() {
       selectPattern: state.selectPattern,
       removePattern: state.removePattern,
       clearPatterns: state.clearPatterns,
+      updatePatternOffset: state.updatePatternOffset,
+      updatePatternRotation: state.updatePatternRotation,
     })),
   );
 
@@ -143,6 +155,18 @@ export function FileUpload() {
     setUploadedPattern,
   });
 
+  // Layout loader hook
+  const { loadLayout } = useLayoutLoader({
+    fileService,
+    pyodideReady,
+    initializePyodide,
+    addPattern,
+    updatePatternOffset,
+    updatePatternRotation,
+    selectPattern,
+    clearPatterns,
+  });
+
   // Wrapper to call upload with current pattern data
   const handleUpload = useCallback(async () => {
     if (pesData && currentFileName) {
@@ -168,6 +192,43 @@ export function FileUpload() {
     patternOffset,
     patternRotation,
   });
+
+  // Save current planner layout to a file
+  const handleSaveLayout = useCallback(async () => {
+    try {
+      const json = serializeLayout(patterns, selectedId);
+      await fileService.saveLayoutDialog(json, "respira-layout.layout.json");
+    } catch (err) {
+      alert(
+        `Failed to save layout: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`,
+      );
+    }
+  }, [fileService, patterns, selectedId]);
+
+  // Load a saved layout from a file
+  const handleLoadLayout = useCallback(async () => {
+    try {
+      const result = await fileService.openLayoutDialog();
+      if (!result) return;
+
+      const layout = parseLayout(result.content);
+      const { loaded, missing } = await loadLayout(layout);
+
+      if (missing.length > 0) {
+        alert(
+          `Loaded ${loaded.length} pattern(s). Could not find: ${missing
+            .map((p) => p.fileName)
+            .join(", ")}`,
+        );
+      }
+    } catch (err) {
+      const message =
+        err instanceof LayoutError ? err.message : "Failed to load layout";
+      alert(message);
+    }
+  }, [fileService, loadLayout]);
 
   const borderColor = pesData
     ? "border-secondary-600 dark:border-secondary-500"
@@ -251,20 +312,42 @@ export function FileUpload() {
         {/* Planner pattern list */}
         {patterns.length > 0 && (
           <div className="mb-3 border rounded-md border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-2">
               <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                 Planner ({patterns.length})
               </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearPatterns}
-                disabled={isUploading || patternUploaded}
-                className="h-5 px-1.5 text-xs text-danger-600 hover:text-danger-700 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
-              >
-                <XMarkIcon className="w-3 h-3 mr-1" />
-                Clear
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSaveLayout}
+                  disabled={isUploading || patternUploaded}
+                  className="h-5 px-1.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-200 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <ArrowDownTrayIcon className="w-3 h-3 mr-1" />
+                  Save
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLoadLayout}
+                  disabled={isUploading || patternUploaded}
+                  className="h-5 px-1.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-200 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <FolderOpenIcon className="w-3 h-3 mr-1" />
+                  Load
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearPatterns}
+                  disabled={isUploading || patternUploaded}
+                  className="h-5 px-1.5 text-xs text-danger-600 hover:text-danger-700 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+                >
+                  <XMarkIcon className="w-3 h-3 mr-1" />
+                  Clear
+                </Button>
+              </div>
             </div>
             <ul className="max-h-40 overflow-y-auto">
               {patterns.map((pattern) => (

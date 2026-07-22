@@ -3,6 +3,7 @@ export { usePatternRotationUpload } from "./usePatternRotationUpload";
 export { useMachinePolling } from "./useMachinePolling";
 export { useErrorPopoverState } from "./useErrorPopoverState";
 export { useActivePatternSync } from "./useActivePatternSync";
+export { useLayoutLoader } from "./useLayoutLoader";
 export type {
   UseMachinePollingOptions,
   UseMachinePollingReturn,
