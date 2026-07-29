@@ -1,3 +1,9 @@
+> [!WARNING]
+> I've forked this great project to make some changes.
+> ALL OF THEM ARE 100% VIBE CODED AND NOT REALLY TESTED
+> I cannot stress this enough. I have probably added terrible code.
+
+
 # Respira
 
 Respira is an pattern transmission and embroidery monitoring application for the Brother PP-1 SKiTCH embroidery machine.
